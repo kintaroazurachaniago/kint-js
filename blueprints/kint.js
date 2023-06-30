@@ -1,0 +1,1 @@
+require('./node_modules/kint-js/classes/Builder')(...process.argv.slice(2))

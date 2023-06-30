@@ -1,0 +1,23 @@
+{
+  "name": "kint-js",
+  "version": "1.5.0",
+  "description": "This is kint-js framework",
+  "main": "app.js",
+  "scripts": {
+    "test": "node app",
+    "kint": "node node_modules/kint-js/kint"
+  },
+  "bin": {
+    "kint": "bin/index.js"
+  },
+  "keywords": [
+    "kint-js",
+    "kint-js-framework"
+  ],
+  "author": "kintaro azura chaniago",
+  "license": "ISC",
+  "dependencies": {
+    "formidable": "^2.1.1",
+    "node-session": "^1.2.1"
+  }
+}

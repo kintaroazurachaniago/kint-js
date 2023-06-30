@@ -1,0 +1,289 @@
+Note :
+	- Model
+		Usable model methods
+
+		Create
+		.create({ data }) 		// return { ok : true, data } or { error : true, message }
+
+		Read
+		.read(fields) 				// return Array with data
+		.take(fields) 				// return Object
+
+		Update
+		.update({ newData }) 	// return { ok : true, data } or { error : true, message }
+
+		Delete
+		.delete()							// return { ok : true } or { error : true, message }
+
+		Selection
+		.if(field, value) 		// return Model with selected data
+		.if(field, value) 		// return .if method
+		.and(field, value) 		// return Model with selected data
+
+		- id auto increment while creating new data
+	- View
+		- -=(path, data)=-	 	including tag : path to be included
+		- -={data}=-					printing tag 	: data can be a variable or actual data
+		- -=[script]=-				scripting tag : script should be a nodejs scripting not javascript scripting
+	- Controller
+		- res.params 		{object} 		- returning parameter that difined on url parameter like /:username.
+																	req.params.username value will be "kint" if you visite /kint
+		- res.body			{object} 		- returning some data from html form
+		- res.view   		{function} 	- no return
+		- res.redirect 	{function} 	- no return
+
+================================================================================================================================================
+====================================================================== kint builder ============================================================
+================================================================================================================================================
+
+Package.json
+
+add this script
+
+"script":{
+	"create-kint-builder":"node node_modules/kint-js/create-kint-builder"
+}
+
+command : npm run create-kint-builder 			// creating kint builder file
+
+command : node kint create model User 			// creating model file at /models/User.js
+command : node kint create view user 				// creating view file at /views/user.kint
+command : node kint create controller user 	// creating controller file at /controllers/user.js
+command : node kint create mvc user 				// creating model, view, and controller file at the same time
+
+command : node kint rollback								// rolling back the action. usable to multiple times
+
+================================================================================================================================================
+====================================================================== Registering routes ======================================================
+================================================================================================================================================
+
+Route
+
+Filename : /index.js
+const { app, Kint }  = require('kint-js') // require kint-js
+
+// get method
+app.get('/', 'home')
+app.get('/users', 'user/index')
+
+// post method
+app.post('/users', 'user/new')
+app.post('/user/update', 'user/update')
+
+// using parameters
+app.get('/user/edit/:id', 'user/edit')
+app.get('/user/:id', 'user/detail')
+app.get('/:id', 'user/detail')
+
+app.start(4120, 'App started on port :' + port) // starting app
+
+Note:
+	- app.get & app.post method
+		@param[0] {string} - url
+			- use colon (:) for parameter instead of exactly path
+			- parameter order
+					get 	/path/path/path/:param -> and so on
+					get 	/path/path/:param
+					get 	/path/:param
+					get 	/:param
+					post 	/path/path/path/:param -> and so on
+					post 	/path/path/:param
+					post 	/path/:param
+					post 	/:param
+		@param[1] {string} - controller // 'user/index' = path.join(path.resolve(), 'controllers', 'user/index')
+	- app.start method
+		@param[0] {number} - port
+		@param[1] {string} - status message
+
+================================================================================================================================================
+====================================================================== Using controller ========================================================
+================================================================================================================================================
+
+Client request to localhost:4120/users
+
+Route
+
+Filename : /index.js
+const app = require('kint-js')
+app.get('/users', 'user/index')
+app.start(4120, 'Serving...')
+
+Controller
+
+Filename : /controllers/user/index.js
+module.exports = (req, res, Model /* passing model */) => {
+	const User  = new Model('User') 						// Using model
+	const users = User.read()										// Reading data from model
+	const data  = { title : 'Users', users }		// Binding title and users
+	res.view('user/index', data)								// Response view to client
+}
+
+================================================================================================================================================
+====================================================================== Using Model =============================================================
+================================================================================================================================================
+
+Client request to localhost:4120/users - Getting all users
+
+Model
+
+Filename : /models/User.js
+module.exports = {
+	id     : Number,
+	name   : String,
+	isAdmin: Boolean,
+	skils  : Array,
+	address: Object
+}
+
+Controller
+
+Filename : /controllers/user/index.js
+module.exports = (req, res, Model) => {
+	const User  = new Model('User')
+	const users = User.read()
+	const data  = { title : 'Users', users }
+	res.view('user/index', data)
+}
+
+/*
+* Initialize new model
+* new Model('User')
+* Model's methods
+* create
+	- User.create(data)																				// return { ok : true }
+* read
+	- User.if('id', 1).read(field) 														// return [{}]
+	- User.like('name', 'uzumaki').read(field) 								// return [{}]
+	- User.if('id', 1).read(field).limit(number)							// return [{}]
+	- User.like('name', 'uzumaki').read(field).limit(number) 	// return [{}]
+* update
+	- User.if('id', 1).update(data)														// return { ok : true }
+	- User.like('name', 'uzumaki').update(data)								// return { ok : true }
+* delete
+	- User.if('id', 1).delete()																// return { ok : true }
+	- User.like('name', 'uzumaki').delete()										// return { ok : true }
+*/
+
+================================================================================================================================================
+====================================================================== Using View ==============================================================
+================================================================================================================================================
+
+Client request to localhost:4120/users
+
+Route
+
+Filename : /index.js
+const app = require('kint-js')
+
+app.get('/users', 'user/index')
+
+app.start(4120, 'Server running on port 4120')
+
+Controller
+
+Filename : /controllers/user/index.js
+module.exports = (req, res) => {
+	const users = [
+		{ id : 1, name : 'naruto' },
+		{ id : 2, name : 'hinata' },
+		{ id : 3, name : 'sasuke' },
+		{ id : 4, name : 'sakura' },
+	]
+	/* res.view need 2 parameter (viewPath, data) */
+	res.view('user/index', { title: 'Users', users })
+}
+
+View
+
+Filename : /views/master.kint
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>-={ data.title }=-</title> <!-- using printing tag -->
+</head>
+<body>
+	-=('elements/nav', data)=- <!-- using including tag -->
+	-=(content, data)=- <!-- content variable can only accessed in this master view -->
+</body>
+</html>
+
+Filename : /views/elements/nav.kint
+<!-- -={content}=- will cause an error. content is not defined -->
+<a href="/">Home</a>
+<a href="/users">Users</a>
+<a href="/about">About</a>
+
+Filename : /views/user/index.kint
+<!-- -={content}=- will cause an error. content is not defined -->
+<h1>Users</h1>
+-=('user-list', data)=-
+
+Filename : /views/user/user-list.kint
+<!-- -={content}=- will cause an error. content is not defined -->
+-=[ data.forEach( user => { ]=-
+	<div>
+		<a href="/user/-={ user.id }=-">-={ user.name }=-</a>
+	</div>
+-=[ }) ]=-
+
+Final view
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Users</title>
+</head>
+<body>
+	<a href="/">Home</a>
+	<a href="/users">Users</a>
+	<a href="/about">About</a>
+	<h1>Users</h1>
+	<a href="/user/1">naruto</a>
+	<a href="/user/2">hinata</a>
+	<a href="/user/3">sasuke</a>
+	<a href="/user/4">sakura</a>
+</body>
+</html>
+
+/*
+* menggunakan metode res.view di controller
+* metode res.view membutuhkan 2 parameter
+* parameter pertama adalah content yang akan di include dari view master
+* parameter kedua adalah data yang dapat dugunakan diseluruh view
+* res.view('/users', users) akan merender view "master" lalu meng-include view "/users" dengan membawa data "users"
+* pada view master.kint
+* gunakan -=(content, data)=- didalam tag body
+* -=(viewPath, serverData)=- including tag
+* variable content hanya bisa di akses di view master
+* -=(content, data)=- sama dengan -=('/users', data)=- artinya variable content adalah parameter pertama pada res.view metode
+*/
+
+================================================================================================================================================
+====================================================================== Redirecting =============================================================
+================================================================================================================================================
+
+Case : Delete user then go to /users with bring message and deleted id
+
+Route: /user/delete // redirect source
+
+Controller: user/delete
+	const [ message, id ] = ['Deleted!', 10]
+	res.redirect('/users', { message, id })
+	Note:
+		message and id that passed as second parameter object in res.redirect method
+		will be accessible as req.params on redirected target which is /users
+
+View:no-view
+
+Route: /users // redirect target
+
+Controller: user/index
+	const users = [] // Users array from database
+	const { message, id } = req.params
+	res.view('user/index', { users, message, id })
+	Note: message and id in req.params property are passed from /user/delete while redirecting to /users as second parameter
+
+View: user/index

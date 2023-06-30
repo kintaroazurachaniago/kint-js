@@ -1,0 +1,5 @@
+<!-- -={name}=- view -->
+<h1>Welcome to -={name}=-</h1>
+<div>
+	Data : -={JSON.stringify(data)}=-
+</div>
