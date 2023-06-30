@@ -110,8 +110,8 @@ Before we can render the targeted view, we must have a master view.
 <body>
 	<!-- 
 		-=( path, data )=- 	// including tag
-		-={ data }=-				// printing tag
-		-=[ script ]=-			// scripting tag
+		-={ data }=-		// printing tag
+		-=[ script ]=-		// scripting tag
 	-->
 	-=(content, data)=-
 	<script src="/assets/js/script.js"></script>
