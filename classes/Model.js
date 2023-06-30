@@ -113,7 +113,7 @@ class Model extends Kint {
 	}
 
 	read (field) { /* field = Array */
-		const data = this[this.#selection ? 'selected' : 'data']
+		const data = this.#selection ? this.#selected : this.#data
 
 		if ( !field ) return data
 
@@ -126,7 +126,7 @@ class Model extends Kint {
 
 	update (newData) {
 		const validated = this.validate(newData)
-		const data      = this[this.#selection ? 'selected' : 'data']
+		const data      = this.#selection ? this.#selected : this.#data
 
 		const updated   = data.map( d => {
 			Object.keys(validated).forEach( v => v !== 'id' ? d[v] = validated[v] : false )
