@@ -1,1 +1,1 @@
-[]
+[[{"name":"user","filename":"D:\\Code\\kint-js-test\\models\\user.js"},{"name":"user","filename":"D:\\Code\\kint-js-test\\dbs\\user.json"},{"name":"user","filename":"D:\\Code\\kint-js-test\\views\\user\\index.kint"},{"name":"user","filename":"D:\\Code\\kint-js-test\\controllers\\user\\index.js"},{"route":"app.get('/user/index', 'user/index')"}]]

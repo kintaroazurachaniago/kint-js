@@ -1,5 +1,5 @@
 # Welcome to Kint-js Framework
-Hi! Let's create a web application with the MVC concept using this minimalist framework.
+The nodejs web framework is designed to be "**zero dependency**" making it faster and easier to use.
 ## Installation
 ```bash
 npm install kint-js
@@ -54,16 +54,43 @@ node kint rollback
 ```
 ## Main file
 ```javascript
+const { app, Kint }    = require('kint-js')
 const [ port, status ] = [ 4120, 'App started!' ]
-const { app, Kint } = require('kint-js')
 
 /*
+* #########################
 * use kint object if needed
 * kint class has some method that may usefull for you
 * some of them are .pkg(), .logLeft(), .logRight()
+*/
 
-* Do not remove start and end comment
+/*
+* #############################
+* Using external package method
+* Should be pure function | Cannot run class method properly
+* @params (request, response) - Always bring these 2 important prameter
+* @return <promise> - Executed by async - await function
+* Uncomment some lines of code below to try
+* Don't forget to install it from npmjs.com "npm i node-session"
+*/
 
+// const sess    = require('node-session')
+// const session = new sess({ secret : 'asdf' })
+
+// function useSession (req, res) {
+// 	return new Promise( resolve => {
+// 		session.startSession(req, res, _ => {
+// 			resolve('Session started!')
+// 		})
+// 	})
+// }
+
+// app.use(useSession)
+
+/*
+* #######################################
+* Do not remove "start" and "end" comment
+* #######################################
 */
 
 /* start */
@@ -81,7 +108,22 @@ module.exports = (req, res, Model) => {
 	* model used : -={modelName}=-
 	* code...
 	*/
-	res.view('-={name}=-', { title : '-={name}=-' })
+
+	function getMethodHandler () {
+		/* get method handler */
+		res.view('-={name}=-', { title : '-={name}=-', params : req.params })
+	}
+
+	function postMethodHandler () {
+		/* Post method handler */
+		console.log('Form data :', req.body)
+	}
+
+	switch ( req.method ) {
+	case 'GET' : getMethodHandler(); 	break
+	case 'POST': postMethodHandler(); break
+	default    : res.end('Unknown method')
+	}
 }
 ```
 ## Model file
@@ -110,13 +152,54 @@ Before we can render the targeted view, we must have a master view.
 <body>
 	<!-- 
 		-=( path, data )=- 	// including tag
-		-={ data }=-		// printing tag
-		-=[ script ]=-		// scripting tag
+		-={ data }=-				// printing tag
+		-=[ script ]=-			// scripting tag
 	-->
 	-=(content, data)=-
 	<script src="/assets/js/script.js"></script>
 </body>
 </html>
+```
+# Note
+```txt
+## Update version @1.6.0
++ use method @ Router class
+- node-session dependency
+
+###############
+
+Use external package method instead of pure function
+
+Example :
+
+const sess    = require('node-session')
+const session = new sess({ secret : 'asdf' })
+
+function useSession (req, res) {
+	return new Promise( resolve => {
+		session.startSession(req, res, _ => {
+			resolve('Session started!')
+		})
+	})
+}
+
+app.use(useSession)
+
+##########
+
+## Update version @1.6.1 -> (zero dependency)
+- formidable dependency
+
+## Update version @1.6.6
++ user settings file
++ auto upload switch @ user settings
+	{
+		"autoUpload":false,
+		"uploadDir":"assets/images/upload"
+	}
++ upload method @ Router class
+	res.uplod()
++ resolve base-app and base-kint path
 ```
 ```mermaid
 graph

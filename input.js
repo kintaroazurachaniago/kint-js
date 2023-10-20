@@ -1,11 +1,10 @@
 const { execSync } = require('child_process')
 const path         = require('path')
-const base         = path.resolve()
 const readline     = require('readline')
 
 const openBase = _ => {
 	setTimeout(process.exit, 1000)
-	execSync('start cmd.exe ' + base)
+	execSync('start cmd.exe ' + path.resolve())
 }
 
 const action = data => {

@@ -1,0 +1,27 @@
+Update version @1.6.0
++ use method @ Router class
+- node-session dependency
+
+###############
+
+Use external package method instead of pure function
+
+Example :
+
+const sess    = require('node-session')
+const session = new sess({ secret : 'asdf' })
+
+function useSession (req, res) {
+	return new Promise( resolve => {
+		session.startSession(req, res, _ => {
+			resolve('Session started!')
+		})
+	})
+}
+
+app.use(useSession)
+
+##########
+
+Update version @1.6.1 -> (zero dependency)
+- formidable dependency

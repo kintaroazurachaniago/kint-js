@@ -1,7 +1,5 @@
-const path = require('path')
-const base = path.resolve()
-
-const builder = require(path.join(base, 'node_modules/kint-js/classes/Builder'))
+const bk = require('./base-kint')
+const builder = require(bk('classes/Builder'))
 
 /* write main */
 builder('build')
