@@ -1,6 +1,8 @@
 const path = require('path')
-const base = path.resolve()
-const settings = require(path.join(base, 'node_modules/kint-js/settings'))
+
+const ba   = require('../base-app')
+const bk   = require('../base-kint')
+const sett = require(bk('bind-settings'))
 
 class Controller {
 
@@ -11,7 +13,7 @@ class Controller {
 
 	select (filename) {
 		try {
-			const controller = require(path.join(settings.controllersPath, filename))
+			const controller = require(path.join(sett.controllersPath, filename))
 			if ( typeof controller == 'object' ) throw `\r\nYou haven't export ${filename} controller yet!\r\n`
 			if ( typeof controller == 'function' ) return controller
 		} catch (err) {

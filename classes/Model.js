@@ -23,10 +23,11 @@
 */
 
 const path = require('path')
-const base = path.resolve()
-const sett = require(path.join(base, 'node_modules/kint-js/settings'))
+const ba   = require('../base-app')
+const bk   = require('../base-kint')
+const sett = require(bk('bind-settings'))
 
-const Kint   = require(sett.kintPath)
+const Kint = require(sett.kintPath)
 
 class Model extends Kint {
 
@@ -40,17 +41,24 @@ class Model extends Kint {
 		super()
 		this.name   = name
 		this.#data   = JSON.parse(super.readFile(path.join(sett.dbsPath, name+'.json')))
-		this.schema = require(path.join(base, 'models', name))
+		this.schema = require(path.join(ba, 'models', name))
 	}
 
 	validate (data) {
 		const validated = {}
-		const lastData  = this.#data[this.#data.length-1]
-		const lastID    = lastData ? lastData.id + 1 : 1
+		const lastData  = this.#data[this.#data.length-1] /* Taking last data */
+		const lastID    = lastData ? lastData.id + 1 : 1 /* Taking last id */
 
 		validated.id    = lastID
 
-		for ( let [key, val] of Object.entries(this.schema) ) if ( key != 'id' ) validated[key] = val(data[key])
+		for ( let [key, val] of Object.entries(this.schema) ) {
+			/* if the key or field name is 'id' */
+			if ( key == 'id' || !data[key] || !data[key].length ) continue
+			/* If the value instance of array */
+			if ( Array.isArray(data[key]) ) validated[key] = val(...data[key])
+			/* Other instances [string, number, object, boolean] */
+			else validated[key] = val(data[key])
+		}
 
 		return validated
 	}

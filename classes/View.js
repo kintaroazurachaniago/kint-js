@@ -1,7 +1,7 @@
-const path = require('path')
 const fs   = require('fs')
-const base = path.resolve()
-const sett = require(path.join(base, 'node_modules/kint-js/settings'))
+const bk   = require('../base-kint')
+const sett = require(bk('bind-settings'))
+
 const Kint = require(sett.kintPath)
 
 class View extends Kint {
@@ -13,7 +13,7 @@ function print (data='') {
 	const fs         = require('fs')
 	const base       = path.resolve()
 	const outputPath = path.join(base, 'node_modules/kint-js/Output.html')
-	fs.appendFileSync(outputPath, data.toString())
+	fs.appendFileSync(outputPath, data?.toString() ?? '')
 }\r\n`
 	content = ''
 

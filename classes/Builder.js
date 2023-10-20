@@ -1,6 +1,9 @@
+const exec = require('child_process').exec
 const path = require('path')
-const base = path.resolve()
-const sett = require(path.join(base, 'node_modules/kint-js/settings'))
+
+const ba   = require('../base-app')
+const bk   = require('../base-kint')
+const sett = require(bk('bind-settings'))
 const Kint = require(sett.kintPath)
 
 class Builder extends Kint {
@@ -9,6 +12,7 @@ class Builder extends Kint {
 
 	constructor(action, mvc, name) {
 		super()
+		if ( !action ) exec('start node node_modules/kint-js/input')
 		switch ( action ) {
 		case 'build'   : this.build(); break
 		case 'reset'   : this.reset(); break
@@ -34,7 +38,7 @@ class Builder extends Kint {
 			sett.assetsPath,
 			sett.cssPath,
 			sett.imagesPath,
-			sett.uploadPath,
+			sett.uploadDir,
 			sett.jsPath,
 			sett.modelsPath,
 			sett.viewsPath,
@@ -50,6 +54,7 @@ class Builder extends Kint {
 		files[sett.scriptFile]   = this.getBlueprint('script.js')
 		files[sett.masterFile]   = this.getBlueprint('master.kint')
 		files[sett.notFoundFile] = this.getBlueprint('404.kint')
+		files[sett.settingsFile] = this.getBlueprint('settings.json')
 
 		let error = false
 		/* Creating multiple folders */
@@ -58,8 +63,9 @@ class Builder extends Kint {
 				super.mkdir(folder)
 				super.logLeft('Creating'.colorize('b') + ' folder '.colorize('m') + super.pkg().name + folder.split(super.pkg().name)[1])
 				super.logRight('Success'.colorize('g'))
-			} catch {
+			} catch (err) {
 				error = true
+				console.log(err)
 			}
 		})
 
@@ -116,8 +122,6 @@ class Builder extends Kint {
 	}
 
 	start () {
-		const { exec } = require('child_process')
-		setTimeout(exec, 1000, `taskkill /f /pid ${process.ppid}`)
 		exec('start node node_modules/kint-js/input')
 		exec(`start nodemon --ext kint,js ${super.pkg().main}`)
 	}
@@ -208,20 +212,20 @@ class Builder extends Kint {
 		const filename = path.join(sett.viewsPath, name+'.kint')
 
 		super.logLeft('Creating'.colorize('b') + ' view       '.colorize('m') + name)
-		this.writeFile('views', 'view.kint', filename, name.split('/')[0], fromMVC)
+		this.writeFile('views', 'view.kint', filename, name, fromMVC)
 	}
 
 	controller (name, fromMVC=false) {
 		const filename = path.join(sett.controllersPath, name+'.js')
 
 		super.logLeft('Creating'.colorize('b') + ' controller '.colorize('m') + name)
-		this.writeFile('controllers', 'controller.js', filename, name.split('/')[0], fromMVC)
+		this.writeFile('controllers', 'controller.js', filename, name, fromMVC)
 	}
 
 	addRoute (method, name, fromMVC=false) {
 		name = (name[0] != '/' ? '/' : '') + name
 		
-		const mainFile = super.readFile(path.join(base, super.pkg().main))
+		const mainFile = super.readFile(path.join(ba, super.pkg().main))
 
 		let [top, mid, bottom]
 			=mainFile
@@ -304,7 +308,7 @@ class Builder extends Kint {
 			+ bottom
 
 		/* rewrite main file */
-		super.writeFile(path.join(base, super.pkg().main), updatedRoute)
+		super.writeFile(path.join(ba, super.pkg().main), updatedRoute)
 
 		/* finished */
 		super.logRight('Success'.colorize('g'))
@@ -314,30 +318,36 @@ class Builder extends Kint {
 	}
 
 	writeFile (mvcBases, bp, filename, name, fromMVC=false) {
-		let createdDir = path.join(base, mvcBases)
-		const history  = { name, filename }
-
 		/* make sure the folder exists or create if it doesn't exists */
-		name.split('/').forEach( dir => {
-			createdDir = path.join(createdDir, dir)
-			if ( !super.exists(createdDir) ) super.mkdir(createdDir)
-		})
+		if ( name.includes('/') ) super.mkdir(
+			/* first param = new dir path */
+			path.join(mvcBases, name.split('/').slice(0, -1).join('/')),
+			/* second param = is it has multiple subdir */
+			true /* multi subdir */
+		)
 
 		/* if file already exists return */
 		if ( super.exists(filename) ) return super.logRight('Already exists!'.colorize('r'))
 
-		super.writeFile(filename, this.getBlueprint(bp).replace(/-={name}=-/g, name).replace(/-={modelName}=-/g, name.split('/')[0]))
+		super.writeFile(filename,
+			this
+			.getBlueprint(bp)
+			.replace(/-={name}=-/g, name)
+			.replace(/-={modelName}=-/g, name.split('/')[0])
+		)
 		super.logRight('Success'.colorize('g'))
 
 		/* adding history */
-		this.addHistory(history, fromMVC)
+		this.addHistory({ name : name.split('/')[0], filename }, fromMVC)
 	}
 
-	addHistory (newHistory, fromMVC=false) {
+	addHistory (newHistory, fromMVC=false, histories=JSON.parse(super.readFile(sett.historyPath))) {
+		/* from mvc, just collect history */
 		if ( fromMVC ) return this.histories.push(newHistory)
 
-		const histories = JSON.parse(super.readFile(sett.historyPath))
-		histories.push(newHistory)
+		histories.push(newHistory) /* push new history into histories array */
+
+		/* not from mvc, write history directly */
 		super.writeFile(sett.historyPath, JSON.stringify(histories))
 	}
 

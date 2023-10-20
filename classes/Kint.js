@@ -1,6 +1,7 @@
-const fs = require('fs')
+const fs   = require('fs')
 const path = require('path')
-const base = path.resolve()
+
+const ba   = require('../base-app')
 
 String.prototype.colorize = function (c) {
 	const colors = {
@@ -59,7 +60,7 @@ class Kint {
 	upload (files, folder='/') {
 		for ( let file of Object.values(files) ) {
 			const filename = path.join(folder, file.originalFilename)
-			const filepath = path.join(base, filename)
+			const filepath = path.join(ba, filename)
 			fs.renameSync(file.filepath, filepath)
 		}
 	}
@@ -83,15 +84,21 @@ class Kint {
 	color (t, c) { return color(t, c) }
 
 	pkg () {
-		return JSON.parse(this.readFile(path.join(base, 'package.json')))
+		return JSON.parse(this.readFile(path.join(ba, 'package.json')))
 	}
 
 	exists (dir) {
 		return fs.existsSync(dir)
 	}
 
-	mkdir (dir) {
-		return fs.mkdirSync(dir)
+	mkdir (dir, multiSubdir=false) {
+		if ( !multiSubdir ) return fs.mkdirSync(dir)
+
+		let createdDir = ba
+		dir.split('\\').forEach( dir => {
+			createdDir = path.join(createdDir, dir)
+			if ( !this.exists(createdDir) ) this.mkdir(createdDir, false)
+		})
 	}
 
 	readdir (dir) {

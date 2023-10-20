@@ -1,30 +1,43 @@
 const qs   = require('querystring')
 const path = require('path')
-const base = path.resolve()
-const sett = require(path.join(base, 'node_modules/kint-js/settings'))
+const ba   = require('../base-app')
+const bk   = require('../base-kint')
+const sett = require(bk('bind-settings'))
+
 const Kint = require(sett.kintPath)
+const View = require(sett.viewPath)
 
 function httpCallback (req, res, router) {
-	const { url, method } = req
-	router.logLeft('Request'.colorize('b') + ` : ${url}@${method}`)
 
-	/* handle static files */
-	if ( url.split('/')[1] == 'assets' ) return res.end(router.staticFile(url))
+	/* Use external package */
+	async function useExternalPackage (x) {
+		if ( !router.packages.length ) return
+		await router.packages[x](req, res)
+		if ( x < router.packages.length - 1 ) return useExternalPackage(x+1)
+	}
 
-	const View 	 = require(sett.viewPath)
+	useExternalPackage(+0).then( _ => {
+		const { url, method } = req
+		router.logLeft('Request'.colorize('b') + ` : ${url}@${method}`)
 
-	req.params   = url.includes('?') ? qs.parse(url.split('?')[1]) : {}
-	res.redirect = router.redirect(res)
-	res.json     = data => res.end(JSON.stringify(data))
-	res.upload   = router.upload
-	res.view     = (path, data={}) => res.end(new View().master(path, data))
+		/* handle static files */
+		if ( url.split('/')[1] == 'assets' ) return res.end(router.staticFile(url))
 
-	return router[method+'Handler'](req, res)
+		req.params   = url.includes('?') ? qs.parse(url.split('?')[1]) : {}
+		res.redirect = router.redirect(res)
+		res.json     = data => res.end(JSON.stringify(data))
+		res.upload   = router.upload
+		res.view     = (path, data={}) => res.end(new View().master(path, data))
+
+		return new Promise( resolve => resolve(router[method+'Handler'](req, res)))
+	})
+
 }
 
 module.exports = new class Router extends Kint {
 
-	routes = []
+	routes      = []
+	packages = []
 
 	constructor () { super() }
 	get 				(url, controller, model, method="GET") { this.register(...arguments, model, method) }
@@ -35,17 +48,20 @@ module.exports = new class Router extends Kint {
 	}
 
 	start (port, ...status) {
-		const router = this
 		require('http')
-		.createServer( (req, res) => httpCallback(req, res, router))
+		.createServer( async (req, res) => await httpCallback(req, res, this))
 		.listen(port, _ => console.log(...status, `http://localhost:${port}/`))
+	}
+
+	use (fn) {
+		this.packages.push(fn)
 	}
 
 	staticFile (staticPath) {
 		let file, error
 		try {
 			const fs  = require('fs')
-			const sfp = path.join(base, staticPath) /* static file path */
+			const sfp = path.join(ba, staticPath) /* static file path */
 			const sfd = fs.readFileSync(sfp) /* static file data */
 			file      = sfd
 			super.logRight('Success'.colorize('g'))
@@ -62,19 +78,101 @@ module.exports = new class Router extends Kint {
 	}
 
 	POSTHandler (req, res) {
-		const formidable = require('formidable')
-		const form = formidable({ multiples : true, uploadDir : sett.uploadPath })
 
-		form.parse(req, (err, fields, files) => {
-			if ( err ) console.log(err.toString().colorize('r'))
+		req.on("data", onData).on("end", _ => {
+			const fs = require('fs')
+			/* parsing form */
+			req.body = parseForm(extract(req.headers["content-type"], " boundary="), req.data)
 
-			req.body  = fields
-			res.files = files
+			if ( sett.autoUpload ) this.upload()
+		  
+		  return this.handler(req, res)
+		})
 
-			/* append filename into req.body */
-			for ( let[key, val] of Object.entries(files) ) req.body[key] = val.newFilename
+		function onData (data) {
+			if ( req.data ) {
+		    req.data.fill(data, req.dataIndex)
+		    req.dataIndex += data.length
+		  } else { 
+		    var cl = +req.headers["content-length"] /* parse int content length */
 
-			return this.handler(req, res)
+		    if ( data.length === cl ) return req.data = data
+
+	      req.data = Buffer.alloc(cl)
+	      req.data.fill(data)
+	      req.dataIndex = data.length
+		  }
+		}
+
+		function extract (arr, start, end) {
+		  var useIndex = typeof start === "number", i, j
+
+		  if ( useIndex ) {
+		    i = start
+
+		    if ( !end ) return arr.slice(1)
+		    j = arr.indexOf(end, i)
+		    return (j === -1) ? ["", -1] : [ (i === j) ? "" : arr.slice(i, j), j + end.length]
+		  } else {
+		    i = arr.indexOf(start)
+		  
+		    if ( i !== -1 ) {
+		      i += start.length
+		      if ( end ) {
+		        j = arr.indexOf(end, i)
+		        if (j !== -1) return arr.slice(i, j)
+		      } else return arr.slice(i)
+		    }
+		  
+		    return ""
+		  }
+		}
+
+		function parseForm (boundary, data) {
+		  let
+			form      = {},
+			delimiter = Buffer.from("\r\n--" + boundary),
+			body      = extract(data, "--" + boundary + "\r\n"),
+			CR        = Buffer.from("\r\n\r\n"),
+			i         = 0,
+		  head, name, filename, value, obj
+
+		  if ( body ) {
+		    while ( i !== -1 ) {
+					[head, i]  = extract(body, i, CR)
+					name       = extract(head, '; name="', '"').toString();
+					filename   = extract(head, '; filename="', '"').toString();
+					[value, i] = extract(body, i, delimiter)
+
+		      if ( name ) {
+		        obj = filename ? {filename, value} : value.toString()
+
+		        if ( form.hasOwnProperty(name) ) { /* Multiple */
+		          if ( Array.isArray(form[name]) ) form[name].push(obj)
+		          else form[name] = [form[name], obj]
+		        } else form[name] = obj
+		      }
+
+		      if ( body[i] === 45 && body[i + 1] === 45 ) break /* "--" */
+
+		      if ( body[i] === 13 && body[i + 1] === 10 ) i += 2 /* "\r\n" */
+		      else { /* error */ }
+		    }
+		  }
+
+		  return form
+		}
+	}
+
+	/* res.upload() */
+
+	upload () {
+		/* Upload file process */
+		Object
+		.keys(req.body)
+		.forEach( key => {
+			/* If file, Write file */
+			if ( req.body[key].filename ) fs.writeFileSync(path.join(sett.uploadDir, req.body[key].filename), req.body[key].value)
 		})
 	}
 
@@ -105,7 +203,31 @@ module.exports = new class Router extends Kint {
 		/* there is no routes registered */
 		if ( !routes.length ) {
 			super.logRight('Failed!'.colorize('r'))
-			return { callback : (req, res) => res.end('<h1>No routes registered!</h1>') }
+			return { callback : (req, res) => res.end(`
+				<style>
+					* { font-family: monospace; background: black; color: white; }
+					.code { font-weight: bold; background: #222; color: black; padding: 10px; border-radius: 5px; margin: 5px auto; display: inline; }
+					.exe { color: yellow; background: inherit; }
+					.kint { color: lightblue; background: inherit; }
+					.action { color: white; background: inherit; }
+					.name { color: gray; background: inherit; }
+				</style>
+				<h1>No routes registered!</h1>
+				Run these commands
+				<p>Note : replace [name] with mvc name as you want</p>
+				<h3>create model, view, controller, and it's route as well at the same times</h3>
+				<div class="code"><span class="exe">node</span> <span class="kint">kint</span> <span class="action">create mvc</span> <span class="name">[name]</span></div>
+				<h3>Add new route</h3>
+				<div class="code"><span class="exe">node</span> <span class="kint">kint</span> <span class="action">get</span> <span class="name">[name]</span></div>
+				<h3>create new model</h3>
+				<div class="code"><span class="exe">node</span> <span class="kint">kint</span> <span class="action">create model</span> <span class="name">[name]</span></div>
+				<h3>create new view</h3>
+				<div class="code"><span class="exe">node</span> <span class="kint">kint</span> <span class="action">create view</span> <span class="name">[name]</span></div>
+				<h3>create new controller</h3>
+				<div class="code"><span class="exe">node</span> <span class="kint">kint</span> <span class="action">create controller</span> <span class="name">[name]</span></div>
+				<h3>Rolling back actions</h3>
+				<div class="code"><span class="exe">node</span> <span class="kint">kint</span> <span class="action">rollback</span></div>
+			`) }
 		}
 
 		/* filtering routes that has suitable method with request method */
@@ -193,7 +315,7 @@ module.exports = new class Router extends Kint {
 			// if third parameter not undefined. it will throwing an error
 			if ( over ) throw `Redirect arguments has over! It's only need 2 parameters. 3 prameters are given`
 
-			res.writeHead(302 /* redirect */, { 'Location': url + '?' + querystring.stringify(data) });
+			res.writeHead(302 /* redirect */, { 'Location': url + '?' + qs.stringify(data) });
 			res.end('Redirecting...')
 		}
 	}
